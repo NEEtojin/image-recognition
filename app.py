@@ -2,7 +2,6 @@ import os
 from flask          import Flask, flash, render_template, request, redirect, g, Response, jsonify, current_app, session
 from werkzeug.utils import secure_filename
 
-#import numpy as np
 import json
 from functools import wraps
 import bcrypt, jwt
