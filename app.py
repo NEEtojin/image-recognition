@@ -1,12 +1,13 @@
 import os
-from flask          import Flask, flash, render_template, request, redirect, g, Response, jsonify, current_app, session
+from flask          import Flask, flash, render_template, request, redirect, g, Response, jsonify, current_app, session, url_for
 from werkzeug.utils import secure_filename
 
+import numpy as np
 import json
 from functools import wraps
 import bcrypt, jwt
 from datetime import datetime, timedelta
-#from PIL import Image
+from PIL import Image
 #import matplotlib.pyplot as plt
 #%matplotlib inline
 
@@ -15,18 +16,18 @@ import torchvision
 from torchvision import models, transforms
 
 HOME_FOLDER = os.getcwd()
-UPLOAD_FOLDER = HOME_FOLDER+'/image/uploads/'
+UPLOAD_FOLDER = HOME_FOLDER+'/uploads/'
 ALLOWED_EXTENSIONS = { 'png', 'jpg', 'jpeg', 'gif'}
 
 app = Flask(__name__ )
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.secret_key = 'this is not a secret key'#just for test
-app.users = {'testid':bcrypt.hashpw('testpassword'.encode('UTF-8'),bcrypt.gensalt())}
+app.users = {'testid':bcrypt.hashpw(b"testpassword",bcrypt.gensalt())}
 
 net = models.vgg16()
 print('loading model...')
-load_weights = torch.load(HOME_FOLDER+'/vgg16-397923af.pth')
-net.load_state_dict(load_weights)
+#load_weights = torch.load(HOME_FOLDER+'/vgg16-397923af.pth')
+#net.load_state_dict(load_weights)
 print('load complete')
 net.eval()
 
@@ -67,24 +68,6 @@ ILSVRC_class_index = json.load(open(savepath,'r'))
 predictor = ILSVRCPredictor(ILSVRC_class_index)
 
 
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        access_token = request.headers.get('Authorization')
-        if access_token is not None:
-            try:
-                payload = jwt.decode(access_token, current_app.secret_key, 'HS256')
-            except jwt.InvalidTokenError:
-                return Response(status = 401)
-            
-            username = payload['username']
-            g.username = username
-        else:
-            return Response(status = 401)
-        
-        return f(*args, **kwargs)
-    return decorated_function
-
 def allowed_file(filename):
     return '.' in filename and \
             filename.rsplit('.',1)[1].lower() in ALLOWED_EXTENSIONS
@@ -92,38 +75,41 @@ def allowed_file(filename):
 @app.route('/', methods = ['GET'])
 def index():
     if 'username' in session:
-        return f'hello, {username}!'
+        return f'hello, {session["username"]}!'
     return 'hello!', 200
 
 @app.route('/login', methods = ['GET','POST'])
 def login():
     if request.method == 'POST':
         
-        userinfo = request.json
-        #flash(f'userinfo: {userinfo}')
-        username = userinfo['username']
-        password = userinfo['password']
+        
+        username = request.form['username']
+        password = request.form['password']
 
-        if bcrpyt.checkpw(password.encode('UTF-8'), app.users['testid'].encode('UTF-8')):
-            payload = {
-                'username'  : username,
-            '   exp'       : datetime.utcnow() + timedelta(seconds = 60*60*1)
-                }
-            token = jwt.encode(payload, app.secret_key,'HS256')
+        if bcrypt.checkpw(password.encode('UTF-8'), app.users['testid']):
+            session['username'] = request.form['username']
+            session.permanent = True
+            return redirect(url_for('upload_file'))
 
-            return jsonify({
-                'access_token' : token
-                })
         else:
             return "", 401
-    return render_template('login.html')
+    if "username" in session:
+        return f'You are already logged in'        
+    else:        
+        return '''
+            <form method="post">
+                <p><input type=text name=username>
+                <p><input type=password name=password>
+                <p><input type=submit value=Login>
+            </form>
+        '''
+    #return render_template('login.html')
 
 @app.route('/upload', methods = ['GET','POST'])
-@login_required
 def upload_file():
     #test_session = session(permanent = True)
     if request.method == 'POST':
-        test_session = session(permanent = True)
+        #test_session = session(permanent = True)
         result = ''
         if 'file' not in request.files:
             flash('No file part')
@@ -135,6 +121,7 @@ def upload_file():
             return redirect(request.url)
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
+            #return filename
             filepath = os.path.join(app.config['UPLOAD_FOLDER'],filename)
             file.save(filepath)
             img = Image.open(filepath)
@@ -149,4 +136,12 @@ def upload_file():
         else:
             flash('Allowed file type: png, jpg, jpeg, gif')
         return f'This is an image of {result}', 200
-    return render_template('upload.html')
+    if 'username' in session:
+        return render_template('upload.html')
+    else:
+        return 'You are not logged in', 401
+
+@app.route('/logout')
+def logout():
+    session.pop('username',None)
+    return redirect(url_for('index'))
