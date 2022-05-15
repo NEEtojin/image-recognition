@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+	<body>
+		<center><h1>Login Form</h1></center>
+		<form id="login-form">
+			
+			<label>Username:</label>
+			<input type="text" placeholder="Enter Username" name="username" id="username-field"  class="login-form-field" required>
+			<label>Password:</label>
+			<input type="password" placeholder="Enter Password" name="password" id="password-field"  class="login-form-field" required>
+			<input type="submit" value="Login" id="login-form-submit">
+			
+		</form>
+		<script type="text/javascript" src="{{ url_for('static', filename='login.js') }}"></script>
+	</body>
+</html>
