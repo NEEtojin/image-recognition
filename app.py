@@ -76,8 +76,9 @@ def allowed_file(filename):
 def index():
     #print(session)
     #print(request.cookies)
-    if 'username' in session:
-        return f'hello, {session["username"]}!'
+    username = request.cookies.get('username',"")
+    if username in session:
+        return f'hello, {username}!'
     return 'hello!', 200
 
 @app.route('/login', methods = ['GET','POST'])
@@ -86,9 +87,12 @@ def login():
         
         username = request.form['username']
         password = request.form['password']
-
+        
+        if username in session:
+            return f'You are already logged in, {username}' 
+        
         if bcrypt.checkpw(password.encode('UTF-8'), app.users[username]):
-            session['username'] = request.form['username']
+            session[username] = True
             session.permanent = True
             response = redirect(url_for('upload_file'))
             response.set_cookie('username',username)
@@ -96,8 +100,7 @@ def login():
 
         else:
             return "", 401
-    if "username" in session:
-        return f'You are already logged in'        
+          
     else:        
         return '''
             <form method="post">
@@ -109,6 +112,7 @@ def login():
 
 @app.route('/upload', methods = ['GET','POST'])
 def upload_file():
+    username = request.cookies.get('username',"")
     if request.method == 'POST':
         result = ''
         if 'file' not in request.files:
@@ -135,13 +139,14 @@ def upload_file():
         else:
             flash('Allowed file type: png, jpg, jpeg, gif')
         return f'This is an image of {result}', 200
-    if 'username' in session and session['username']=='testid':
+    if username in session and username=='testid':
         return render_template('upload.html')
     else:
         return 'You are not testid', 401
 
 @app.route('/logout')
 def logout():
-    session.pop('username',None)
+    username = request.cookies['username']
+    session.pop(username,None)
     print('logout',session)
     return redirect(url_for('index'))
