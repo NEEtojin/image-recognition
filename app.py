@@ -76,7 +76,7 @@ def allowed_file(filename):
 def index():
     #print(session)
     #print(request.cookies)
-    username = request.cookies.get('username',"")
+    username = request.cookies.get('username',None)
     if username in session:
         return f'hello, {username}!'
     return 'hello!', 200
@@ -88,9 +88,7 @@ def login():
         username = request.form['username']
         password = request.form['password']
         
-        if username in session:
-            return f'You are already logged in, {username}' 
-        
+       
         if bcrypt.checkpw(password.encode('UTF-8'), app.users[username]):
             session[username] = True
             session.permanent = True
@@ -100,8 +98,11 @@ def login():
 
         else:
             return "", 401
-          
-    else:        
+    print(request)   
+    username = request.cookies.get('username',"")
+    print(request.cookies)
+    print(session)
+    if username == "":        
         return '''
             <form method="post">
                 <p><input type=text name=username>
@@ -109,6 +110,8 @@ def login():
                 <p><input type=submit value=Login>
             </form>
         '''
+    elif username in session:
+        return f'You are already logged in, {username}' 
 
 @app.route('/upload', methods = ['GET','POST'])
 def upload_file():
@@ -146,7 +149,8 @@ def upload_file():
 
 @app.route('/logout')
 def logout():
-    username = request.cookies['username']
+    username = request.cookies.get('username',None)
     session.pop(username,None)
-    print('logout',session)
-    return redirect(url_for('index'))
+    response = redirect(url_for('index'))
+    response.set_cookie('username',"")
+    return response
