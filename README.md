@@ -1,3 +1,3 @@
 # image-recognition
-toy project
+toy project    
 just started github!
