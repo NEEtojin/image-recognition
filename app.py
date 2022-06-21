@@ -74,8 +74,6 @@ def allowed_file(filename):
 
 @app.route('/', methods = ['GET'])
 def index():
-    #print(session)
-    #print(request.cookies)
     username = request.cookies.get('username',None)
     if username in session:
         return f'hello, {username}!'
@@ -98,10 +96,8 @@ def login():
 
         else:
             return "", 401
-    print(request)   
+  
     username = request.cookies.get('username',"")
-    print(request.cookies)
-    print(session)
     if username == "":        
         return '''
             <form method="post">
@@ -145,7 +141,7 @@ def upload_file():
     if username in session and username=='testid':
         return render_template('upload.html')
     else:
-        return 'You are not testid', 401
+        return 'You are not testid', 403
 
 @app.route('/logout')
 def logout():
